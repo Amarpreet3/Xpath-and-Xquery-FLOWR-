@@ -1,4 +1,4 @@
-# Xpath-and-Xquery-FLOWR
+# CIND 110 - Data Organization for Data Analysts- Assignment 2
 Library books dataset #Section-I XML- Data.xml and companyDB XML Database- Xpath and Xquery(FLOWR)
 Creating an XML Database
 Navigating the companyDB XML Database
