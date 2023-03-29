@@ -1,0 +1,132 @@
+---
+title: "CIND 110-Assignment 2"
+author: "Amarpreet Kaur"
+date: "06-Dec-2022"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+#Install and load required packages
+```{r}
+#https://cran.r-project.org/web/packages/tm/index.html
+#install.packages("tm", dependencies = TRUE)
+#https://cran.r-project.org/web/packages/RWeka/index.html
+#install.packages("RWeka", dependencies = TRUE)
+#https://cran.r-project.org/web/packages/textstem/index.html
+#install.packages("textstem", dependencies = TRUE)
+#https://cran.r-project.org/web/packages/textclean/index.html
+#install.packages("textclean", dependencies = TRUE)
+#https://cran.r-project.org/web/packages/text2vec/index.html
+#install.packages("text2vec", dependencies = TRUE)
+lstPackages <- c('tm', 'RWeka', 'textstem', 'textclean', 'text2vec')
+lapply(lstPackages, library, character.only = TRUE)
+```
+
+##Read The Sample Data QUESTION 2
+```{r}
+# Read The Sample Dataset
+rawData <- read.csv(file = 'booksCSV.csv', header = T, sep = ",")
+numberofDocs <- length(rawData$id)
+rawData$id <- paste0("Doc", c(1:numberofDocs))
+```
+
+## Prepare The Corpora
+```{r}
+# Prepare The Corpora
+listofDocs <- tm::VectorSource(rawData$description)
+listofDocs$Names <- names(rawData$id)
+corporaData <- tm::VCorpus(listofDocs)
+#listofDocs
+
+
+```
+
+## Cleaning and Preprocessing the text (Cleansing)
+```{r}
+#Replacing number with words 
+for(i in 1:12)
+{
+  corporaData[[i]]$content <- 
+  as.character(textclean::replace_number(corporaData[[i]]$content))
+}
+
+#Utilizing a Thesaurus
+for(i in 1:12)
+{
+    corporaData[[i]]$content <- 
+    textstem::lemmatize_strings(corporaData[[i]]$content, 
+                                dictionary = lexicon::hash_lemmas)
+}
+
+#Stemming
+corporaData <- tm::tm_map(corporaData, stemDocument)
+
+#Stopword Removal
+corporaData <- tm::tm_map(corporaData, removeWords, stopwords('english')) 
+corporaData <- tm::tm_map(corporaData, removeWords, stopwords('SMART')) 
+
+#Other Pre-processing Steps: Punctuation Marks, Extra Whitespaces, etc 
+corporaData <- tm::tm_map(corporaData, content_transformer(tolower))
+corporaData <- tm::tm_map(corporaData, removePunctuation,  
+                      ucp = TRUE, 
+                      preserve_intra_word_contractions = FALSE,
+                      preserve_intra_word_dashes = FALSE)
+#corporaData <- tm::tm_map(corporaData, removeNumbers)
+corporaData <- tm::tm_map(corporaData, stripWhitespace)
+
+corporaData[[12]]$content
+corporaData
+```
+
+##Create a uni-gram Term Document Matrix-QUESTION 2 & 3 CREATING TDM-UNI
+```{r}
+# Create a uni-gram Term Document Matrix
+term.doc.matrix.1g <- tm::TermDocumentMatrix(corporaData)
+tm::inspect(term.doc.matrix.1g[1:12,1:12])
+
+# Represent TDM in a matrix format and display its dimensions
+term.doc.matrix.unigram <- as.matrix(term.doc.matrix.1g)
+dim(term.doc.matrix.unigram)
+head(term.doc.matrix.unigram)
+```
+
+
+## Declaring weights (TF-IDF variants)
+```{r}
+# Declaring weights (TF-IDF variants)
+tf.idf.weights <- function(tf.vec) {
+  # Computes tfidf weights from term frequency vector
+  n.docs <- length(tf.vec)
+  doc.frequency <- length(tf.vec[tf.vec > 0])
+  weights <- rep(0, length(tf.vec))
+  relative.frequency <- tf.vec[tf.vec > 0] / sum(tf.vec[tf.vec > 0])
+  weights[tf.vec > 0] <-  relative.frequency * log10(n.docs/doc.frequency)
+  return(weights)
+}
+```
+
+
+###Compute the TF-IDF (unigram)
+```{r}
+#Compute the TF-IDF (unigram)
+tfidf.matrix.uni <- t(apply(as.matrix(term.doc.matrix.unigram), 1,
+                        FUN = function(row) {tf.idf.weights(row)}))
+
+colnames(tfidf.matrix.uni) <- rawData$id
+head(tfidf.matrix.uni)
+dim(tfidf.matrix.uni)
+
+```
+
